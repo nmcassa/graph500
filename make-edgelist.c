@@ -36,6 +36,30 @@ static int64_t nedge;
 
 static int64_t bfs_root[NBFS_max];
 
+ssize_t write_full(int fd, const void *buf, size_t count) {
+    size_t total_written = 0;
+    const char *ptr = (const char *)buf;
+
+    while (total_written < count) {
+        ssize_t written = write(fd, ptr + total_written, count - total_written);
+
+        if (written < 0) {
+            if (errno == EINTR) continue;  // interrupted → retry
+            perror("write");
+            return -1;
+        }
+
+        if (written == 0) {
+            fprintf(stderr, "write returned 0 (unexpected)\n");
+            return -1;
+        }
+
+        total_written += written;
+    }
+
+    return total_written;
+}
+
 int
 main (int argc, char **argv)
 {
@@ -81,7 +105,11 @@ main (int argc, char **argv)
     return EXIT_FAILURE;
   }
 
-  write (fd, IJ, nedge * sizeof (*IJ));
+  size_t total_size = nedge * sizeof(*IJ);
+  printf("NEDGE: %zu\n", total_size);
+
+  ssize_t written = write_full(fd, IJ, total_size);
+  printf("%zd\n", written);
 
   close (fd);
 
@@ -127,7 +155,13 @@ main (int argc, char **argv)
     }
 
     xfree_large (has_adj);
-    write (fd, bfs_root, NBFS * sizeof (*bfs_root));
+
+    size_t root_size = NBFS * sizeof(*bfs_root);
+    printf("NBFS: %zu\n", root_size);
+
+    ssize_t written = write_full(fd, bfs_root, root_size);
+    printf("%zd\n", written);
+
     close (fd);
   }
 
